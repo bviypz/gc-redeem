@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.6
+// @version      1.5.7
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -1033,11 +1033,15 @@
     const btnRow = mkEl('div', null, 'margin-top:12px;display:flex;justify-content:flex-end;gap:8px;');
     const dl = mkEl('button', 'Download TSV',
       'padding:8px 14px;border:0;background:#1a73e8;color:#fff;border-radius:6px;cursor:pointer;');
+    const cp = mkEl('button', 'Copy TSV',
+      'padding:8px 14px;border:0;background:#1a73e8;color:#fff;border-radius:6px;cursor:pointer;');
     const close = mkEl('button', 'Close',
       'padding:8px 14px;border:1px solid #ccc;background:#f5f5f5;border-radius:6px;cursor:pointer;');
     dl.onclick = () => downloadCards();
+    cp.onclick = () => copyCards();
     close.onclick = () => panel.remove();
     btnRow.appendChild(dl);
+    btnRow.appendChild(cp);
     btnRow.appendChild(close);
     panel.appendChild(btnRow);
     (document.body || document.documentElement).appendChild(panel);
@@ -1056,7 +1060,6 @@
   GM_registerMenuCommand('GC: Redeem all gift cards', startRedeem);
   GM_registerMenuCommand('GC: View collected cards', openCardsPanel);
   GM_registerMenuCommand('GC: Download card data (TSV)', downloadCards);
-  GM_registerMenuCommand('GC: Copy card data (TSV)', copyCards);
   GM_registerMenuCommand('GC: Clear collected card data', clearCards);
 
   debug('gc-redeem loaded on', location.hostname, '- menu commands registered');
