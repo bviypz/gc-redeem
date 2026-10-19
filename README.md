@@ -30,8 +30,9 @@ and collects the issued card numbers into a TSV file.
    collected_at, status`).
 
 Already-redeemed cards are handled: claiming goes straight to the card detail
-page and the card is scraped directly. No tab is ever closed automatically;
-**GC: Close all gift card tabs** cleans up when you're done.
+page and the card is scraped directly. After a successful claim the
+giftcards.com tab closes itself once the order number has been handed off
+(never in debug mode).
 
 ## Install (first time)
 

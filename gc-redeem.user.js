@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.3
+// @version      1.5.4
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -40,14 +40,11 @@
  * Already-redeemed cards are handled: if claiming lands straight on the card
  * detail page (no registration form), the card is scraped directly.
  *
- * No tab is ever closed automatically, except the giftcards.com redeem tab:
- * after a successful claim it closes itself once the order number has been
- * handed to the registration/card tab (2s after the handoff, 5s when we
- * reopened a blocked popup, 90s backstop). Debug mode disables the auto-close
- * so tabs stay open for inspection. The Gmail tab and any tab where
- * the claim produced nothing are always left open. Tampermonkey menu ->
- * "GC: Close all gift card tabs" closes every giftcards.com /
- * activationspot.com tab at once (with confirmation); the Gmail tab stays.
+ * The giftcards.com redeem tab closes itself after a successful claim, once
+ * the order number has been handed to the registration/card tab (2s after
+ * the handoff, 5s when we reopened a blocked popup, 90s backstop). Debug
+ * mode disables the auto-close so tabs stay open for inspection. The Gmail
+ * tab and any tab where the claim produced nothing are always left open.
  * NOTE: after updating the script, reload any already-open tabs — they keep
  * running the old version (including its old menu items) until reloaded.
  *
@@ -1012,43 +1009,16 @@
 
   /* ---------------- menu + router ---------------- */
 
-  // Cooperative "close all": a menu click sets a timestamp in storage; every
-  // giftcards.com / activationspot.com tab polls for it and closes itself.
-  // (A script can only close tabs it opened, so each tab closes itself.)
-  // Tabs opened after the signal are unaffected (signal must be newer than
-  // the tab). The Gmail tab never watches, so it stays open.
-  const __tabBornAt = Date.now();
-  function closeAllGcTabs() {
-    try {
-      if (!confirm('Close all giftcards.com and activationspot.com tabs?\n\nThe Gmail tab stays open.')) return;
-    } catch (e) { return; }
-    try { GM_setValue('gc_close_all', Date.now()); } catch (e) {}
-    toast('Close signal sent — gift card tabs will close themselves.');
-    log('close-all signal sent');
-  }
-  function watchCloseSignal() {
-    setInterval(() => {
-      let sig = 0;
-      try { sig = GM_getValue('gc_close_all', 0); } catch (e) {}
-      if (sig > __tabBornAt) {
-        log('close-all signal received; closing this tab');
-        window.close();
-      }
-    }, 2000);
-  }
-
   GM_registerMenuCommand('GC: Settings', openProfilePanel);
   GM_registerMenuCommand('GC: Redeem all gift cards', startRedeem);
   GM_registerMenuCommand('GC: View collected cards', openCardsPanel);
   GM_registerMenuCommand('GC: Download card data (TSV)', downloadCards);
   GM_registerMenuCommand('GC: Clear collected card data', clearCards);
-  GM_registerMenuCommand('GC: Close all gift card tabs', closeAllGcTabs);
 
   debug('gc-redeem loaded on', location.hostname, '- menu commands registered');
 
   const host = location.hostname;
   if (host.includes('giftcards.com')) {
-    watchCloseSignal();
     // Only the recipient-experience page is a redeem flow
     // (/us/en/transaction/recipient-experience?lineItemId=...). Homepage,
     // shop, account and other pages are ignored.
@@ -1058,7 +1028,6 @@
       debug('giftcards.com page is not a redeem link; plugin idle:', location.pathname);
     }
   } else if (host.includes('activationspot.com')) {
-    watchCloseSignal();
     routeActivationspot();
   }
   // mail.google.com: driven manually via the Tampermonkey menu.
