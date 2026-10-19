@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.5
+// @version      1.5.6
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -11,6 +11,7 @@
 // @grant        GM_listValues
 // @grant        GM_deleteValue
 // @grant        GM_openInTab
+// @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
 // @updateURL    https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.meta.js
@@ -950,16 +951,20 @@
       .sort((a, b) => String(a.collectedAt || a.ts || 0).localeCompare(String(b.collectedAt || b.ts || 0)));
   }
 
-  function downloadCards() {
-    allowLogBox();
-    const rows = getCardRows();
-    if (!rows.length) { toast('No card data collected yet.'); return; }
+  function buildTsv(rows) {
     const header = 'order_number\tcard_number\tvalid_thru\tcvv\tredeemed_at\tcollected_at\tstatus';
     const lines = rows.map((r) =>
       [r.order || '', r.cardNumber || '', r.valid || '', r.cvv || '',
        r.redeemedAt || '', r.collectedAt || '', r.status || ''].join('\t')
     );
-    const tsv = header + '\n' + lines.join('\n');
+    return header + '\n' + lines.join('\n');
+  }
+
+  function downloadCards() {
+    allowLogBox();
+    const rows = getCardRows();
+    if (!rows.length) { toast('No card data collected yet.'); return; }
+    const tsv = buildTsv(rows);
     const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -969,6 +974,19 @@
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     toast(`Downloaded ${rows.length} card(s) as giftcards.tsv.`);
     log(`exported ${rows.length} card(s) to TSV`);
+  }
+
+  function copyCards() {
+    allowLogBox();
+    const rows = getCardRows();
+    if (!rows.length) { toast('No card data collected yet.'); return; }
+    try {
+      GM_setClipboard(buildTsv(rows), 'text');
+      toast(`Copied ${rows.length} card(s) as TSV to clipboard.`);
+      log(`copied ${rows.length} card(s) to clipboard as TSV`);
+    } catch (e) {
+      toast('Copy failed — the browser blocked clipboard access.');
+    }
   }
 
   function openCardsPanel() {
@@ -1038,6 +1056,7 @@
   GM_registerMenuCommand('GC: Redeem all gift cards', startRedeem);
   GM_registerMenuCommand('GC: View collected cards', openCardsPanel);
   GM_registerMenuCommand('GC: Download card data (TSV)', downloadCards);
+  GM_registerMenuCommand('GC: Copy card data (TSV)', copyCards);
   GM_registerMenuCommand('GC: Clear collected card data', clearCards);
 
   debug('gc-redeem loaded on', location.hostname, '- menu commands registered');
