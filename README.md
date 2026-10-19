@@ -10,14 +10,18 @@ and collects the issued card numbers into a TSV file.
 
 ## Quick start
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/) (Chrome/Edge: also turn
-   on "Allow User Scripts" — see Install below).
-2. **[Install the script (latest release)](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → click **Install** in the Tampermonkey tab.
-3. Open your Gmail message with the "Redeem now" links → Tampermonkey menu →
+1. Install [Tampermonkey](https://www.tampermonkey.net/).
+2. Chrome/Edge: turn on "Allow User Scripts" — see Install below.
+3. **[Install the script (latest release)](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → click **Install** in the Tampermonkey tab.
+4. Open your Gmail message with the "Redeem now" links → Tampermonkey menu →
    **GC: Settings**, fill in your profile once.
-4. Tampermonkey menu → **GC: Redeem all gift cards**. Solve each reCAPTCHA
-   manually; card numbers are saved automatically.
-5. Tampermonkey menu → **GC: Download card data (TSV)** when done.
+5. Tampermonkey menu → **GC: Redeem all gift cards**. Each link opens and the
+   form is filled automatically.
+6. Solve each reCAPTCHA manually: tick **I'm not a robot**, then click
+   **Submit**.
+7. After submit, the card details page appears and the card information
+   (card number, valid thru, CVV) is saved automatically.
+8. Tampermonkey menu → **GC: Download card data (TSV)** when done.
 
 ## How it works
 

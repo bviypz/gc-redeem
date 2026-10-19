@@ -9,14 +9,16 @@
 
 ## 快速开始
 
-1. 安装 [Tampermonkey](https://www.tampermonkey.net/)（Chrome/Edge 还需开启
-   "Allow User Scripts" —— 见下方"安装"）。
-2. **[安装脚本（最新版本）](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → 在 Tampermonkey 安装页点击 **Install**。
-3. 打开包含 "Redeem now" 链接的 Gmail 邮件 → Tampermonkey 菜单 →
+1. 安装 [Tampermonkey](https://www.tampermonkey.net/)。
+2. Chrome/Edge：开启 "Allow User Scripts" —— 见下方"安装"。
+3. **[安装脚本（最新版本）](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → 在 Tampermonkey 安装页点击 **Install**。
+4. 打开包含 "Redeem now" 链接的 Gmail 邮件 → Tampermonkey 菜单 →
    **GC: Settings**，填写一次个人资料。
-4. Tampermonkey 菜单 → **GC: Redeem all gift cards**。每个 reCAPTCHA 需手动
-   完成；卡号会自动保存。
-5. 完成后 Tampermonkey 菜单 → **GC: Download card data (TSV)**。
+5. Tampermonkey 菜单 → **GC: Redeem all gift cards**。每个链接会自动打开并
+   填写表单。
+6. 手动完成每个 reCAPTCHA：勾选 **I'm not a robot**，然后点击 **Submit**。
+7. 提交后会显示卡片详情页，卡信息（卡号、有效期、CVV）会自动保存。
+8. 完成后 Tampermonkey 菜单 → **GC: Download card data (TSV)**。
 
 ## 工作原理
 
