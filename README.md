@@ -6,6 +6,16 @@ and collects the issued card numbers into a TSV file.
 
 > **Not affiliated with giftcards.com.** Use at your own risk.
 
+## Quick start
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/).
+2. **[Install the script (latest release)](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → click **Install** in the Tampermonkey tab.
+3. Open your Gmail message with the "Redeem now" links → Tampermonkey menu →
+   **GC: Settings**, fill in your profile once.
+4. Tampermonkey menu → **GC: Redeem all gift cards**. Solve each reCAPTCHA
+   manually; card numbers are saved automatically.
+5. Tampermonkey menu → **GC: Download card data (TSV)** when done.
+
 ## How it works
 
 1. Open the Gmail message containing your "Redeem now" links.
@@ -30,7 +40,7 @@ page and the card is scraped directly. No tab is ever closed automatically;
    [Edge](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaejbjikekkigoigdjldjjbkj) ·
    [Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/).
 2. Click this install link (always the latest release):
-   `https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js`
+   [gc-redeem.user.js](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)
 3. Tampermonkey opens an install tab — click **Install**.
 4. Open your Gmail message with the redeem links, then open the Tampermonkey
    menu (puzzle-piece icon → Tampermonkey) and choose **GC: Settings** to fill
