@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.2
+// @version      1.5.3
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -518,7 +518,7 @@
       } else if (order && !lid) {
         debug('order found but no lineItemId in href, cannot map:', href.slice(0, 120));
       }
-      GM_openInTab(href, { active: false, insert: true });
+      GM_openInTab(href, { active: false, insert: true, setParent: true });
       await sleep(delaySec * 1000);
     }
   }
@@ -628,7 +628,7 @@
               url = u.toString();
             } catch (e) {}
           }
-          GM_openInTab(url, { active: false, insert: true });
+          GM_openInTab(url, { active: false, insert: true, setParent: true });
           outcome = 'opened-by-us';
         } else {
           log('site opened the registration tab natively');
