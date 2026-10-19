@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.4.8
+// @version      1.4.9
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -548,6 +548,16 @@
     } catch (e) {}
     debug('lineItemId in page URL:', lid || '(none)', '| mapped order:', orderNumber || '(none)');
 
+    // Serve the order number to child tabs (registration / card detail) that
+    // ask via postMessage. Referrer is origin-only cross-origin and claim
+    // URLs often redirect, so this direct channel is the reliable one.
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'gc-whoami' && orderNumber) {
+        try { e.source.postMessage({ type: 'gc-order', order: orderNumber }, '*'); } catch (err) {}
+        debug('answered order request from child tab');
+      }
+    });
+
     // The email step is skipped when the page doesn't show it (already verified).
     // Re-query: the node captured by the initial race may be stale after a re-render.
     const emailInput = first && first.sel === 'input[placeholder="E-mail"]'
@@ -638,7 +648,7 @@
     }
     // Remember the order number for the card page (sessionStorage is per-tab,
     // so no cross-tab race even with many cards in flight).
-    const { order: regOrder, src: regSrc } = resolveRegOrder();
+    const { order: regOrder, src: regSrc } = await resolveRegOrder();
     if (regOrder) {
       try { sessionStorage.setItem('gc_order', regOrder); } catch (e) {}
       debug('order for this registration:', regOrder, '(via ' + regSrc + ')');
@@ -702,7 +712,7 @@
     const cvv = (document.querySelector('span#cvv2') || { innerText: '' }).innerText.trim();
     const valid = (document.querySelector('div.alignDiv') || { innerText: '' }).innerText.trim();
     if (!cardNumber) return;
-    const { order: foundOrder, src } = resolveCardOrder();
+    const { order: foundOrder, src } = await resolveCardOrder();
     if (foundOrder) debug('order resolved via ' + src + ':', foundOrder);
     else debug('no order number resolved for this card');
     const now = new Date().toISOString();
@@ -765,15 +775,51 @@
     } catch (e) { return '(unparseable)'; }
   }
 
+  // Ask the tab that opened us (the giftcards.com tab) for the order number.
+  // The reliable cross-origin channel: referrer is origin-only across origins
+  // and claim URLs often redirect (defeating URL-derived keys).
+  // Resolves '' on timeout or when there is no live opener.
+  function requestOrderFromOpener(timeout = 2500) {
+    return new Promise((resolve) => {
+      let opener = null;
+      try { opener = window.opener; } catch (e) {}
+      let alive = false;
+      try { alive = !!opener && !opener.closed; } catch (e) {}
+      if (!alive) { debug('  opener: (none or closed)'); resolve(''); return; }
+      let done = false;
+      const finish = (val) => {
+        if (done) return; done = true;
+        clearTimeout(to); window.removeEventListener('message', onMsg);
+        resolve(val);
+      };
+      const to = setTimeout(() => finish(''), timeout);
+      const onMsg = (e) => {
+        if (e.data && e.data.type === 'gc-order' && e.data.order) {
+          debug('  via opener:', e.data.order);
+          finish(e.data.order);
+        }
+      };
+      window.addEventListener('message', onMsg);
+      try {
+        debug('  asking opener for order…');
+        opener.postMessage({ type: 'gc-whoami' }, '*');
+      } catch (e) { finish(''); }
+    });
+  }
+
   // Where did this registration tab come from? Used to attach the order #.
-  function resolveRegOrder() {
+  async function resolveRegOrder() {
     debug('resolving registration order for', describeUrl(location.href));
     // 0. We opened this tab ourselves after a popup-block and tagged the URL.
     try {
       const p = new URL(location.href).searchParams.get('gc_order');
       if (p) { debug('  via urlparam:', p); return { order: p, src: 'urlparam' }; }
     } catch (e) {}
-    // 1. Site opened this tab natively: referrer is the giftcards page URL.
+    // 1. Ask the giftcards tab that opened us.
+    const viaOpener = await requestOrderFromOpener();
+    if (viaOpener) return { order: viaOpener, src: 'opener' };
+    // 2. Site opened this tab natively: referrer is the giftcards page URL
+    //    (usually origin-only cross-origin — best effort).
     try {
       const ref = document.referrer || '';
       const lid = lineItemIdFromUrl(ref);
@@ -784,7 +830,7 @@
         debug('  no mapping stored for lineItemId', lid);
       }
     } catch (e) {}
-    // 2. We opened it after a popup-block: order stored under URL-derived keys.
+    // 3. We opened it after a popup-block: order stored under URL-derived keys.
     const keys = orderKeysForUrl(location.href);
     debug('  checking', keys.length, 'URL-derived keys…');
     for (const k of keys) {
@@ -798,7 +844,7 @@
   }
 
   // Where did this card page come from? Used to attach the order #.
-  function resolveCardOrder() {
+  async function resolveCardOrder() {
     debug('resolving card order for', describeUrl(location.href));
     // 0. Tagged URL (we opened this tab after a popup-block).
     try {
@@ -812,7 +858,10 @@
       if (s) { debug('  via session:', s); return { order: s, src: 'session' }; }
     } catch (e) {}
     debug('  session: (empty)');
-    // 2. Referrer carries the giftcards URL (same-tab claim navigation).
+    // 2. Ask the giftcards tab that opened us (opener survives same-tab nav).
+    const viaOpener = await requestOrderFromOpener();
+    if (viaOpener) return { order: viaOpener, src: 'opener' };
+    // 3. Referrer carries the giftcards URL (same-tab claim navigation).
     try {
       const ref = document.referrer || '';
       const lid = lineItemIdFromUrl(ref);
@@ -823,7 +872,7 @@
         debug('  no mapping stored for lineItemId', lid);
       }
     } catch (e) {}
-    // 3. Giftcards tab stored it under keys derived from this page's own URL
+    // 4. Giftcards tab stored it under keys derived from this page's own URL
     //    (already-redeemed cards opened directly by the claim click).
     const keys = orderKeysForUrl(location.href);
     debug('  checking', keys.length, 'URL-derived keys…');
@@ -833,7 +882,7 @@
         if (o) { debug('  via urlkey:', o); return { order: o, src: 'urlkey' }; }
       } catch (e) {}
     }
-    // 4. Best effort: order number printed on the card page itself.
+    // 5. Best effort: order number printed on the card page itself.
     try {
       const m = (document.body ? document.body.innerText : '').match(/Order\s*Number\s*:\s*([\d-]+)/i);
       if (m) { debug('  via page text:', m[1].trim()); return { order: m[1].trim(), src: 'page' }; }
