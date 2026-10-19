@@ -1,0 +1,27 @@
+name: Attach release assets
+
+# When you publish a GitHub Release (via the web UI), this workflow attaches
+# the userscript and its metadata file to the release. Tampermonkey polls
+# https://github.com/<owner>/<repo>/releases/latest/download/gc-redeem.meta.js
+# for a new @version and offers the update to users.
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload-assets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract metadata block (gc-redeem.meta.js)
+        run: awk '/==UserScript==/,/==\/UserScript==/' gc-redeem.user.js > gc-redeem.meta.js
+
+      - name: Attach assets to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            gc-redeem.user.js gc-redeem.meta.js --clobber
