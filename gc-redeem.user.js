@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.0
+// @version      1.5.1
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -43,7 +43,8 @@
  * No tab is ever closed automatically, except the giftcards.com redeem tab:
  * after a successful claim it closes itself once the order number has been
  * handed to the registration/card tab (2s after the handoff, 5s when we
- * reopened a blocked popup, 90s backstop). The Gmail tab and any tab where
+ * reopened a blocked popup, 90s backstop). Debug mode disables the auto-close
+ * so tabs stay open for inspection. The Gmail tab and any tab where
  * the claim produced nothing are always left open. Tampermonkey menu ->
  * "GC: Close all gift card tabs" closes every giftcards.com /
  * activationspot.com tab at once (with confirmation); the Gmail tab stays.
@@ -560,7 +561,11 @@
     let closeTimer = null;
     const scheduleClose = (ms, why) => {
       if (closeTimer) clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => { debug('closing giftcards tab (' + why + ')'); window.close(); }, ms);
+      closeTimer = setTimeout(() => {
+        if (getSettings().debugMode) { debug('debug mode: tab kept open (would close: ' + why + ')'); return; }
+        debug('closing giftcards tab (' + why + ')');
+        window.close();
+      }, ms);
     };
     window.addEventListener('message', (e) => {
       if (e.data && e.data.type === 'gc-whoami' && orderNumber) {
