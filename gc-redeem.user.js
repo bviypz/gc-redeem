@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.4.9
+// @version      1.5.0
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -40,7 +40,11 @@
  * Already-redeemed cards are handled: if claiming lands straight on the card
  * detail page (no registration form), the card is scraped directly.
  *
- * No tab is ever closed automatically. Tampermonkey menu ->
+ * No tab is ever closed automatically, except the giftcards.com redeem tab:
+ * after a successful claim it closes itself once the order number has been
+ * handed to the registration/card tab (2s after the handoff, 5s when we
+ * reopened a blocked popup, 90s backstop). The Gmail tab and any tab where
+ * the claim produced nothing are always left open. Tampermonkey menu ->
  * "GC: Close all gift card tabs" closes every giftcards.com /
  * activationspot.com tab at once (with confirmation); the Gmail tab stays.
  * NOTE: after updating the script, reload any already-open tabs — they keep
@@ -551,10 +555,18 @@
     // Serve the order number to child tabs (registration / card detail) that
     // ask via postMessage. Referrer is origin-only cross-origin and claim
     // URLs often redirect, so this direct channel is the reliable one.
+    // Auto-close: once a child has been served the order, this tab's job is
+    // done -> close it shortly after (safe: the child already has the data).
+    let closeTimer = null;
+    const scheduleClose = (ms, why) => {
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => { debug('closing giftcards tab (' + why + ')'); window.close(); }, ms);
+    };
     window.addEventListener('message', (e) => {
       if (e.data && e.data.type === 'gc-whoami' && orderNumber) {
         try { e.source.postMessage({ type: 'gc-order', order: orderNumber }, '*'); } catch (err) {}
         debug('answered order request from child tab');
+        scheduleClose(2000, 'order handed off to child tab');
       }
     });
 
@@ -626,15 +638,23 @@
     if (outcome === 'navigated') {
       debug('page navigated in this tab to:', location.href);
       await routeCardOrForm(); // card detail (already redeemed) or registration
-      return;
+      return; // this tab IS the form/card page now — never close it
     }
     if (!outcome) {
       log('WARNING: claim click produced no new tab; leaving tab open');
       toast('Claim click did nothing visible — tab left open for inspection.', 8000);
       return; // never close on failure
     }
-    debug('claim outcome:', outcome);
-    log('done — tab left open (tabs are never auto-closed)');
+    if (outcome === 'opened-by-us') {
+      // Child carries gc_order in its own URL; no opener handoff needed.
+      log('done — closing this tab in 5s');
+      scheduleClose(5000, 'blocked popup reopened with order in URL');
+    } else {
+      // 'opened-native': the message listener above closes this tab 2s after
+      // the child asks for the order. Backstop in case it never asks.
+      log('done — this tab will close once the order is handed off');
+      scheduleClose(90000, 'backstop: child tab never asked for the order');
+    }
   }
 
   /* ---------------- activationspot.com: registration form ---------------- */
