@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.4.6
+// @version      1.4.7
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -510,6 +510,8 @@
       if (lid && order) {
         try { GM_setValue('gc_order_' + lid, order); } catch (e) {}
         debug('mapped', lid, '-> order', order);
+      } else if (order && !lid) {
+        debug('order found but no lineItemId in href, cannot map:', href.slice(0, 120));
       }
       GM_openInTab(href, { active: false, insert: true });
       await sleep(delaySec * 1000);
@@ -538,13 +540,13 @@
     }
 
     // Resolve this tab's order number via the lineItemId in our URL.
+    let lid = '';
     let orderNumber = '';
     try {
-      const lid = lineItemIdFromUrl(location.href);
+      lid = lineItemIdFromUrl(location.href);
       if (lid) orderNumber = GM_getValue('gc_order_' + lid, '');
     } catch (e) {}
-    if (orderNumber) debug('order number for this tab:', orderNumber);
-    else debug('no order number mapped for this tab');
+    debug('lineItemId in page URL:', lid || '(none)', '| mapped order:', orderNumber || '(none)');
 
     // The email step is skipped when the page doesn't show it (already verified).
     // Re-query: the node captured by the initial race may be stale after a re-render.
