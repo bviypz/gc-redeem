@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.4.7
+// @version      1.4.8
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -591,7 +591,17 @@
         }
         if (capturedClaim.blocked && capturedClaim.url) {
           log('popup was blocked by the browser; opening registration URL ourselves');
-          GM_openInTab(capturedClaim.url, { active: false, insert: true });
+          let url = capturedClaim.url;
+          if (orderNumber) {
+            // Tag the order onto the URL so the new tab can read it directly,
+            // even if the page redirects on load (defeats URL-hash lookup).
+            try {
+              const u = new URL(url);
+              u.searchParams.set('gc_order', orderNumber);
+              url = u.toString();
+            } catch (e) {}
+          }
+          GM_openInTab(url, { active: false, insert: true });
           outcome = 'opened-by-us';
         } else {
           log('site opened the registration tab natively');
@@ -746,55 +756,89 @@
     log('WARNING: page shows neither card details nor registration form');
   }
 
+  // Safe URL description for logs: origin + path + param NAMES (never values).
+  function describeUrl(url) {
+    try {
+      const u = new URL(url);
+      const names = [...u.searchParams.keys()].join(',');
+      return u.origin + u.pathname + (names ? '?' + names : '');
+    } catch (e) { return '(unparseable)'; }
+  }
+
   // Where did this registration tab come from? Used to attach the order #.
   function resolveRegOrder() {
+    debug('resolving registration order for', describeUrl(location.href));
+    // 0. We opened this tab ourselves after a popup-block and tagged the URL.
+    try {
+      const p = new URL(location.href).searchParams.get('gc_order');
+      if (p) { debug('  via urlparam:', p); return { order: p, src: 'urlparam' }; }
+    } catch (e) {}
     // 1. Site opened this tab natively: referrer is the giftcards page URL.
     try {
-      const lid = lineItemIdFromUrl(document.referrer || '');
+      const ref = document.referrer || '';
+      const lid = lineItemIdFromUrl(ref);
+      debug('  referrer:', ref ? describeUrl(ref) : '(empty)', '| lineItemId:', lid || '(none)');
       if (lid) {
         const o = GM_getValue('gc_order_' + lid, '');
-        if (o) return { order: o, src: 'referrer' };
+        if (o) { debug('  via referrer:', o); return { order: o, src: 'referrer' }; }
+        debug('  no mapping stored for lineItemId', lid);
       }
     } catch (e) {}
     // 2. We opened it after a popup-block: order stored under URL-derived keys.
-    for (const k of orderKeysForUrl(location.href)) {
+    const keys = orderKeysForUrl(location.href);
+    debug('  checking', keys.length, 'URL-derived keys…');
+    for (const k of keys) {
       try {
         const o = GM_getValue(k, '');
-        if (o) return { order: o, src: 'urlkey' };
+        if (o) { debug('  via urlkey:', o); return { order: o, src: 'urlkey' }; }
       } catch (e) {}
     }
+    debug('  no order found by any method');
     return { order: '', src: 'none' };
   }
 
   // Where did this card page come from? Used to attach the order #.
   function resolveCardOrder() {
+    debug('resolving card order for', describeUrl(location.href));
+    // 0. Tagged URL (we opened this tab after a popup-block).
+    try {
+      const p = new URL(location.href).searchParams.get('gc_order');
+      if (p) { debug('  via urlparam:', p); return { order: p, src: 'urlparam' }; }
+    } catch (e) {}
     // 1. Same-tab navigation from the registration form (no cross-tab race:
     //    sessionStorage is per-tab).
     try {
       const s = sessionStorage.getItem('gc_order');
-      if (s) return { order: s, src: 'session' };
+      if (s) { debug('  via session:', s); return { order: s, src: 'session' }; }
     } catch (e) {}
+    debug('  session: (empty)');
     // 2. Referrer carries the giftcards URL (same-tab claim navigation).
     try {
-      const lid = lineItemIdFromUrl(document.referrer || '');
+      const ref = document.referrer || '';
+      const lid = lineItemIdFromUrl(ref);
+      debug('  referrer:', ref ? describeUrl(ref) : '(empty)', '| lineItemId:', lid || '(none)');
       if (lid) {
         const o = GM_getValue('gc_order_' + lid, '');
-        if (o) return { order: o, src: 'referrer' };
+        if (o) { debug('  via referrer:', o); return { order: o, src: 'referrer' }; }
+        debug('  no mapping stored for lineItemId', lid);
       }
     } catch (e) {}
     // 3. Giftcards tab stored it under keys derived from this page's own URL
     //    (already-redeemed cards opened directly by the claim click).
-    for (const k of orderKeysForUrl(location.href)) {
+    const keys = orderKeysForUrl(location.href);
+    debug('  checking', keys.length, 'URL-derived keys…');
+    for (const k of keys) {
       try {
         const o = GM_getValue(k, '');
-        if (o) return { order: o, src: 'urlkey' };
+        if (o) { debug('  via urlkey:', o); return { order: o, src: 'urlkey' }; }
       } catch (e) {}
     }
     // 4. Best effort: order number printed on the card page itself.
     try {
       const m = (document.body ? document.body.innerText : '').match(/Order\s*Number\s*:\s*([\d-]+)/i);
-      if (m) return { order: m[1].trim(), src: 'page' };
+      if (m) { debug('  via page text:', m[1].trim()); return { order: m[1].trim(), src: 'page' }; }
     } catch (e) {}
+    debug('  no order found by any method');
     return { order: '', src: 'none' };
   }
 
