@@ -63,10 +63,11 @@ update notice in Tampermonkey and can install it from the dashboard.
 
 1. Bump `// @version` in `gc-redeem.user.js` (Tampermonkey only notices a
    *higher* version).
-2. Commit and push.
-3. GitHub → Releases → **Draft a new release**, create tag `vX.Y.Z`, publish.
-   The `Attach release assets` workflow automatically adds `gc-redeem.user.js`
-   and `gc-redeem.meta.js` to the release — that's what Tampermonkey polls.
+2. Commit and push, then tag and push the tag:
+   `git tag vX.Y.Z && git push origin vX.Y.Z`
+3. The `Create release` workflow automatically publishes a GitHub Release for
+   the tag with `gc-redeem.user.js` and `gc-redeem.meta.js` attached — that's
+   what Tampermonkey polls for updates.
 
 ## License
 
