@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.1
+// @version      1.5.2
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -562,7 +562,7 @@
     const scheduleClose = (ms, why) => {
       if (closeTimer) clearTimeout(closeTimer);
       closeTimer = setTimeout(() => {
-        if (getSettings().debugMode) { debug('debug mode: tab kept open (would close: ' + why + ')'); return; }
+        if (isDebug()) { debug('debug mode: tab kept open (would close: ' + why + ')'); return; }
         debug('closing giftcards tab (' + why + ')');
         window.close();
       }, ms);
