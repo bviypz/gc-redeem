@@ -1,7 +1,7 @@
 # gc-redeem
 
 A Tampermonkey userscript that automates redeeming gift-card links from Gmail
-([giftcards.com](https://www.giftcards.com) → Visa virtual account registration)
+(giftcards.com → Visa virtual account registration)
 and collects the issued card numbers into a TSV file.
 
 > **Not affiliated with giftcards.com.** Use at your own risk.
