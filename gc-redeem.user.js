@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gift Card Redeemer (giftcards.com)
 // @namespace    gc-redeemer
-// @version      1.5.4
+// @version      1.5.5
 // @description  Redeem ALL giftcards.com "Redeem now" links from your Gmail and auto-fill the Visa registration form. You solve the CAPTCHA manually, then collect card numbers into a TSV download.
 // @match        *://mail.google.com/*
 // @match        *://*.giftcards.com/*
@@ -72,8 +72,20 @@
   }
 
   let __logBox = null;
+  // The on-page box stays hidden until the user triggers an action (or an
+  // autonomous page flow starts). Console logging always works regardless.
+  let __boxAllowed = false;
+  function allowLogBox() {
+    __boxAllowed = true;
+    try { if (__logBox) __logBox.style.display = ''; } catch (e) {}
+  }
+  function hideLogBox() {
+    __boxAllowed = false;
+    try { if (__logBox) __logBox.style.display = 'none'; } catch (e) {}
+  }
   function __box() {
     try {
+      if (!__boxAllowed) return null;
       if (!__logBox) {
         __logBox = document.createElement('div');
         __logBox.style.cssText =
@@ -88,15 +100,17 @@
   function __fmt(args) {
     return args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
   }
-  // Concise status: always shown (console + on-page green box). Keep these
-  // short — no long URLs here.
+  // Concise status: console always; on-page green box only after allowLogBox()
+  // (a menu action, or an autonomous page flow). Keep these short — no long
+  // URLs here.
   function log(...args) {
     const msg = __fmt(args);
     console.log('[GC]', msg);
     const b = __box();
     if (b) { b.textContent += msg + '\n'; b.scrollTop = b.scrollHeight; }
   }
-  // Verbose diagnostics: console always, on-page box only when debug mode is on.
+  // Verbose diagnostics: console always; on-page box only when debug mode is
+  // on and the box has been allowed.
   function debug(...args) {
     const msg = __fmt(args);
     console.log('[GC:DBG]', msg);
@@ -350,6 +364,7 @@
   }
 
   async function openProfilePanel() {
+    allowLogBox();
     const step = (m) => console.log('[GC] panel:', m);
     try {
       step('waiting for body');
@@ -474,6 +489,7 @@
   /* ---------------- Gmail: open every redeem link ---------------- */
 
   async function startRedeem() {
+    allowLogBox();
     if (!location.hostname.includes('mail.google.com')) {
       toast('Open your Gmail message with the redeem links first, then run this again.');
       return;
@@ -499,7 +515,11 @@
       items.push({ href: a.href, order: findOrderNumber(a) });
     }
     log('found', items.length, '"Redeem now" link(s)');
-    if (!items.length) { toast('No "Redeem now" links found on this page.'); return; }
+    if (!items.length) {
+      toast('No "Redeem now" links found on this page.');
+      setTimeout(hideLogBox, 4000);
+      return;
+    }
     const withOrder = items.filter((i) => i.order).length;
     debug(`${withOrder}/${items.length} link(s) have an order number`);
 
@@ -518,6 +538,8 @@
       GM_openInTab(href, { active: false, insert: true, setParent: true });
       await sleep(delaySec * 1000);
     }
+    log(`done — opened ${items.length} link(s); solve the CAPTCHA in each tab`);
+    setTimeout(hideLogBox, 4000);
   }
 
   /* ---------------- giftcards.com: email -> verify -> claim ---------------- */
@@ -929,6 +951,7 @@
   }
 
   function downloadCards() {
+    allowLogBox();
     const rows = getCardRows();
     if (!rows.length) { toast('No card data collected yet.'); return; }
     const header = 'order_number\tcard_number\tvalid_thru\tcvv\tredeemed_at\tcollected_at\tstatus';
@@ -949,6 +972,7 @@
   }
 
   function openCardsPanel() {
+    allowLogBox();
     if (document.getElementById('gc-cards-panel')) return;
     const rows = getCardRows();
     const panel = mkEl('div', null,
@@ -1002,6 +1026,7 @@
   }
 
   function clearCards() {
+    allowLogBox();
     const keys = GM_listValues().filter((k) => k.startsWith(CARD_PREFIX));
     keys.forEach((k) => GM_deleteValue(k));
     toast(`Cleared ${keys.length} saved card(s).`);
@@ -1023,11 +1048,13 @@
     // (/us/en/transaction/recipient-experience?lineItemId=...). Homepage,
     // shop, account and other pages are ignored.
     if (location.pathname.includes('/transaction/recipient-experience')) {
+      allowLogBox();
       handleGiftcards();
     } else {
       debug('giftcards.com page is not a redeem link; plugin idle:', location.pathname);
     }
   } else if (host.includes('activationspot.com')) {
+    allowLogBox();
     routeActivationspot();
   }
   // mail.google.com: driven manually via the Tampermonkey menu.
