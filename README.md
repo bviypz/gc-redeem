@@ -1,5 +1,7 @@
 # gc-redeem
 
+[中文](README.zh-CN.md) | English
+
 A Tampermonkey userscript that automates redeeming gift-card links from Gmail
 (giftcards.com → Visa virtual account registration)
 and collects the issued card numbers into a TSV file.
@@ -8,7 +10,8 @@ and collects the issued card numbers into a TSV file.
 
 ## Quick start
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/).
+1. Install [Tampermonkey](https://www.tampermonkey.net/) (Chrome/Edge: also turn
+   on "Allow User Scripts" — see Install below).
 2. **[Install the script (latest release)](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)** → click **Install** in the Tampermonkey tab.
 3. Open your Gmail message with the "Redeem now" links → Tampermonkey menu →
    **GC: Settings**, fill in your profile once.
@@ -22,8 +25,14 @@ and collects the issued card numbers into a TSV file.
 2. Tampermonkey menu → **GC: Settings** — fill in the registration profile once
    (name, address, email…). Stored only in Tampermonkey on your browser.
 3. Tampermonkey menu → **GC: Redeem all gift cards** — opens every redeem link,
-   fills the email + registration form on each, and stops before the reCAPTCHA
-   for you to solve manually.
+   fills the email + registration form on each, and stops at the reCAPTCHA.
+   **You** solve it manually on each tab: tick the **I'm not a robot**
+   checkbox, then click **Submit**:
+
+   ![reCAPTCHA checkbox and Submit button](docs/recaptcha-submit.png)
+
+   The script detects the issued card after submit and saves its number
+   automatically.
 4. Each issued card number is saved automatically. Tampermonkey menu →
    **GC: View collected cards** to review, or **GC: Download card data (TSV)**
    to export (`order_number, card_number, valid_thru, cvv, redeemed_at,
@@ -40,10 +49,21 @@ giftcards.com tab closes itself once the order number has been handed off
    [Chrome](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) ·
    [Edge](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaejbjikekkigoigdjldjjbkj) ·
    [Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/).
-2. Click this install link (always the latest release):
+2. **Chrome/Edge only — turn on "Allow User Scripts".** Chrome blocks extensions
+   from running user scripts until you opt in. Go to `chrome://extensions`
+   (`edge://extensions` on Edge), find **Tampermonkey** → **Details**, and turn
+   on **Allow User Scripts**. Without this the script installs but silently
+   does nothing (its title shows grey in the Tampermonkey menu).
+
+   ![Allow User Scripts toggle](docs/allow-user-scripts.png)
+
+   > The extension will be able to run code which has not been reviewed by
+   > Google. It may be unsafe and you should only enable this if you know
+   > what you are doing.
+3. Click this install link (always the latest release):
    [gc-redeem.user.js](https://github.com/bviypz/gc-redeem/releases/latest/download/gc-redeem.user.js)
-3. Tampermonkey opens an install tab — click **Install**.
-4. Open your Gmail message with the redeem links, then open the Tampermonkey
+4. Tampermonkey opens an install tab — click **Install**.
+5. Open your Gmail message with the redeem links, then open the Tampermonkey
    menu (puzzle-piece icon → Tampermonkey) and choose **GC: Settings** to fill
    in your registration profile once.
 
